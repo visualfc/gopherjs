@@ -19,8 +19,6 @@ const GoVersion = 18
 // at goroot, and reports an error if it's not compatible
 // with this version of the GopherJS compiler.
 func CheckGoVersion(goroot string) error {
-	// TODO
-	return nil
 	if nvc, err := strconv.ParseBool(os.Getenv("GOPHERJS_SKIP_VERSION_CHECK")); err == nil && nvc {
 		return nil
 	}
@@ -28,7 +26,8 @@ func CheckGoVersion(goroot string) error {
 	if err != nil {
 		return fmt.Errorf("unable to detect Go version for %q: %w", goroot, err)
 	}
-	if !strings.HasPrefix(v, "go1."+strconv.Itoa(GoVersion)) {
+	// TODO
+	if !strings.HasPrefix(v, "go1.") {
 		return fmt.Errorf("GopherJS %s requires a Go 1.%d.x distribution, but found version %s", Version, GoVersion, v)
 	}
 	return nil
