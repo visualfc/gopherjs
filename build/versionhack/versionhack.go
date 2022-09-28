@@ -27,9 +27,7 @@
 package versionhack
 
 import (
-	"go/build" // Must be initialized before this package.
-
-	"github.com/gopherjs/gopherjs/compiler"
+	// Must be initialized before this package.
 
 	_ "unsafe" // For go:linkname
 )
@@ -41,7 +39,7 @@ var releaseTags []string
 var toolTags []string
 
 func init() {
-	releaseTags = build.Default.ReleaseTags[:compiler.GoVersion]
-	toolTags = []string{}
-	build.Default.ToolTags = []string{}
+	// releaseTags = build.Default.ReleaseTags[:compiler.GoVersion]
+	// toolTags = []string{}
+	// build.Default.ToolTags = []string{}
 }

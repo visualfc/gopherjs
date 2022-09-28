@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 
 	"github.com/gopherjs/gopherjs/compiler"
 	log "github.com/sirupsen/logrus"
@@ -152,7 +153,7 @@ func (bc *BuildCache) LoadArchive(importPath string) *compiler.Archive {
 // commonKey returns a part of the cache key common for all artifacts generated
 // under a given BuildCache configuration.
 func (bc *BuildCache) commonKey() string {
-	return fmt.Sprintf("%#v + %v", *bc, compiler.Version)
+	return fmt.Sprintf("%#v + %v", *bc, runtime.Version())
 }
 
 // archiveKey returns a full cache key for a package's compiled archive.
