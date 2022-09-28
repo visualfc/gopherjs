@@ -7,7 +7,7 @@ type WaitGroup struct {
 	counter int
 	ch      chan struct{}
 
-	state1 [12]byte
+	state1 [3]uint32
 	sema   uint32
 }
 
