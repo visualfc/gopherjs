@@ -1,5 +1,5 @@
-//go:build js && go1.18
-// +build js,go1.18
+//go:build js && !go1.17
+// +build js,!go1.17
 
 package reflect
 
@@ -8,8 +8,6 @@ import (
 	"runtime"
 	"strconv"
 	"unsafe"
-
-	"internal/itoa"
 
 	"github.com/gopherjs/gopherjs/js"
 )
@@ -713,7 +711,7 @@ func (iter *hiter) skipUntilValidKey() {
 	}
 }
 
-func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter) {
+func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer {
 	mapObj := js.InternalObject(m)
 	keys := js.Global.Get("Array").New()
 	if mapObj.Get("keys") != js.Undefined {
@@ -723,16 +721,17 @@ func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter) {
 		}
 	}
 
-	*it = hiter{
+	return unsafe.Pointer(&hiter{
 		t:    t,
 		m:    mapObj,
 		keys: keys,
 		i:    0,
 		last: nil,
-	}
+	})
 }
 
-func mapiterkey(it *hiter) unsafe.Pointer {
+func mapiterkey(_it unsafe.Pointer) unsafe.Pointer {
+	it := (*hiter)(_it)
 	var kv *js.Object
 	if it.last != nil {
 		kv = it.last
@@ -750,7 +749,8 @@ func mapiterkey(it *hiter) unsafe.Pointer {
 	return unsafe.Pointer(js.Global.Call("$newDataPointer", kv.Get("k"), jsType(PtrTo(it.t.Key()))).Unsafe())
 }
 
-func mapiterelem(it *hiter) unsafe.Pointer {
+func mapiterelem(_it unsafe.Pointer) unsafe.Pointer {
+	it := (*hiter)(_it)
 	var kv *js.Object
 	if it.last != nil {
 		kv = it.last
@@ -766,7 +766,8 @@ func mapiterelem(it *hiter) unsafe.Pointer {
 	return unsafe.Pointer(js.Global.Call("$newDataPointer", kv.Get("v"), jsType(PtrTo(it.t.Elem()))).Unsafe())
 }
 
-func mapiternext(it *hiter) {
+func mapiternext(_it unsafe.Pointer) {
+	it := (*hiter)(_it)
 	it.last = nil
 	it.i++
 }
@@ -815,19 +816,6 @@ func cvtDirect(v Value, typ Type) Value {
 		panic(&ValueError{"reflect.Convert", k})
 	}
 	return Value{typ.common(), unsafe.Pointer(val.Unsafe()), v.flag.ro() | v.flag&flagIndir | flag(typ.Kind())}
-}
-
-// convertOp: []T -> *[N]T
-func cvtSliceArrayPtr(v Value, t Type) Value {
-	slice := v.object()
-
-	slen := slice.Get("$length").Int()
-	alen := t.Elem().Len()
-	if alen > slen {
-		panic("reflect: cannot convert slice with length " + itoa.Itoa(slen) + " to pointer to array with length " + itoa.Itoa(alen))
-	}
-	array := js.Global.Call("$sliceToGoArray", slice, jsType(t))
-	return Value{t.common(), unsafe.Pointer(array.Unsafe()), v.flag&^(flagIndir|flagAddr|flagKindMask) | flag(Ptr)}
 }
 
 func Copy(dst, src Value) int {

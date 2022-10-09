@@ -1,5 +1,5 @@
-//go:build js && go1.18
-// +build js,go1.18
+//go:build js && go1.17 && !go1.18
+// +build js,go1.17,!go1.18
 
 package reflect
 
@@ -713,7 +713,7 @@ func (iter *hiter) skipUntilValidKey() {
 	}
 }
 
-func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter) {
+func mapiterinit(t *rtype, m unsafe.Pointer) unsafe.Pointer {
 	mapObj := js.InternalObject(m)
 	keys := js.Global.Get("Array").New()
 	if mapObj.Get("keys") != js.Undefined {
@@ -723,16 +723,17 @@ func mapiterinit(t *rtype, m unsafe.Pointer, it *hiter) {
 		}
 	}
 
-	*it = hiter{
+	return unsafe.Pointer(&hiter{
 		t:    t,
 		m:    mapObj,
 		keys: keys,
 		i:    0,
 		last: nil,
-	}
+	})
 }
 
-func mapiterkey(it *hiter) unsafe.Pointer {
+func mapiterkey(_it unsafe.Pointer) unsafe.Pointer {
+	it := (*hiter)(_it)
 	var kv *js.Object
 	if it.last != nil {
 		kv = it.last
@@ -750,7 +751,8 @@ func mapiterkey(it *hiter) unsafe.Pointer {
 	return unsafe.Pointer(js.Global.Call("$newDataPointer", kv.Get("k"), jsType(PtrTo(it.t.Key()))).Unsafe())
 }
 
-func mapiterelem(it *hiter) unsafe.Pointer {
+func mapiterelem(_it unsafe.Pointer) unsafe.Pointer {
+	it := (*hiter)(_it)
 	var kv *js.Object
 	if it.last != nil {
 		kv = it.last
@@ -766,7 +768,8 @@ func mapiterelem(it *hiter) unsafe.Pointer {
 	return unsafe.Pointer(js.Global.Call("$newDataPointer", kv.Get("v"), jsType(PtrTo(it.t.Elem()))).Unsafe())
 }
 
-func mapiternext(it *hiter) {
+func mapiternext(_it unsafe.Pointer) {
+	it := (*hiter)(_it)
 	it.last = nil
 	it.i++
 }
@@ -1757,5 +1760,23 @@ func verifyNotInHeapPtr(p uintptr) bool {
 	// Go runtime uses this method to make sure that a uintptr won't crash GC if
 	// interpreted as a heap pointer. This is not relevant for GopherJS, so we can
 	// always return true.
+	return true
+}
+
+// copy from go1.18
+func (v Value) CanConvert(t Type) bool {
+	vt := v.Type()
+	if !vt.ConvertibleTo(t) {
+		return false
+	}
+	// Currently the only conversion that is OK in terms of type
+	// but that can panic depending on the value is converting
+	// from slice to pointer-to-array.
+	if vt.Kind() == Slice && t.Kind() == Ptr && t.Elem().Kind() == Array {
+		n := t.Elem().Len()
+		if n > v.Len() {
+			return false
+		}
+	}
 	return true
 }

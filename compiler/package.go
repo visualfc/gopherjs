@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gopherjs/gopherjs/internal/typeparams"
+
 	"github.com/gopherjs/gopherjs/compiler/analysis"
 	"github.com/gopherjs/gopherjs/compiler/astutil"
 	"github.com/neelance/astrewrite"
@@ -400,9 +402,9 @@ func Compile(importPath string, files []*ast.File, fileSet *token.FileSet, impor
 	for _, fun := range functions {
 		o := funcCtx.pkgCtx.Defs[fun.Name].(*types.Func)
 
-		if fun.Type.TypeParams.NumFields() > 0 {
+		if typeparams.FuncTypeHasTypeParam(fun.Type) {
 			return nil, scanner.Error{
-				Pos: fileSet.Position(fun.Type.TypeParams.Pos()),
+				Pos: fileSet.Position(fun.Type.Pos()),
 				Msg: fmt.Sprintf("function %s: type parameters are not supported by GopherJS: https://github.com/gopherjs/gopherjs/issues/1013", o.Name()),
 			}
 		}
@@ -411,8 +413,8 @@ func Compile(importPath string, files []*ast.File, fileSet *token.FileSet, impor
 			FullName: o.FullName(),
 			Blocking: len(funcInfo.Blocking) != 0,
 		}
+		d.LinkingName = newSymName(o)
 		if fun.Recv == nil {
-			d.LinkingName = newSymName(o)
 			d.Vars = []string{funcCtx.objectName(o)}
 			d.DceObjectFilter = o.Name()
 			switch o.Name() {
@@ -431,14 +433,14 @@ func Compile(importPath string, files []*ast.File, fileSet *token.FileSet, impor
 				})
 				d.DceObjectFilter = ""
 			}
-		}
-		if fun.Recv != nil {
+		} else {
 			recvType := o.Type().(*types.Signature).Recv().Type()
 			ptr, isPointer := recvType.(*types.Pointer)
 			namedRecvType, _ := recvType.(*types.Named)
 			if isPointer {
 				namedRecvType = ptr.Elem().(*types.Named)
 			}
+			d.NamedRecvType = funcCtx.objectName(namedRecvType.Obj())
 			d.DceObjectFilter = namedRecvType.Obj().Name()
 			if !fun.Name.IsExported() {
 				d.DceMethodFilter = o.Name() + "~"
@@ -489,7 +491,7 @@ func Compile(importPath string, files []*ast.File, fileSet *token.FileSet, impor
 		}
 		typeName := funcCtx.objectName(o)
 
-		if named, ok := o.Type().(*types.Named); ok && named.TypeParams().Len() > 0 {
+		if named, ok := o.Type().(*types.Named); ok && typeparams.NamedHasTypeParam(named) {
 			return nil, scanner.Error{
 				Pos: fileSet.Position(o.Pos()),
 				Msg: fmt.Sprintf("type %s: type parameters are not supported by GopherJS: https://github.com/gopherjs/gopherjs/issues/1013", o.Name()),
